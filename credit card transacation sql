@@ -1,12 +1,11 @@
--- 1. City-wise Total Spending
+-- 1. Total Spending by City
 SELECT city, SUM(amount) AS total_spent
 FROM CreditCardTransactions
 GROUP BY city
 ORDER BY total_spent DESC;
 
--- 2. Monthly Spend Trend
-SELECT DATE_FORMAT(transaction_date, '%Y-%m') AS month,
-       SUM(amount) AS total_amount
+-- 2. Monthly Spending Trend
+SELECT DATE_FORMAT(transaction_date, '%Y-%m') AS month, SUM(amount) AS total_amount
 FROM CreditCardTransactions
 GROUP BY month
 ORDER BY month;

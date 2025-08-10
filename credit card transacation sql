@@ -1,42 +1,28 @@
-create database creditcard;
-use creditcard;
--- Create SQL Tables
-CREATE TABLE CreditCardTransactions ( 
-    transaction_id INT PRIMARY KEY, 
-    city VARCHAR(100), 
-    transaction_date DATE, 
-    card_type VARCHAR(50), 
-    exp_type VARCHAR(50), 
-    gender CHAR(1), 
-    amount DECIMAL(10,2)
-);
-
--- Key SQL Queries for Analysis
-SELECT city, SUM(amount) AS total_spent 
-FROM CreditCardTransactions 
-GROUP BY city 
+-- 1. City-wise Total Spending
+SELECT city, SUM(amount) AS total_spent
+FROM CreditCardTransactions
+GROUP BY city
 ORDER BY total_spent DESC;
 
--- Monthly Spend Trend
-SELECT  
-    DATE_FORMAT(transaction_date, '%Y-%m') AS month, 
-    SUM(amount) AS total_amount 
-FROM CreditCardTransactions 
-GROUP BY month 
+-- 2. Monthly Spend Trend
+SELECT DATE_FORMAT(transaction_date, '%Y-%m') AS month,
+       SUM(amount) AS total_amount
+FROM CreditCardTransactions
+GROUP BY month
 ORDER BY month;
 
--- Expense Type Distribution
-SELECT exp_type, COUNT(*) AS txn_count, SUM(amount) AS total_spend 
-FROM CreditCardTransactions 
-GROUP BY exp_type 
+-- 3. Expense Type Distribution
+SELECT exp_type, COUNT(*) AS txn_count, SUM(amount) AS total_spend
+FROM CreditCardTransactions
+GROUP BY exp_type
 ORDER BY total_spend DESC;
 
--- Gender-wise Spending
-SELECT gender, COUNT(*) AS txn_count, SUM(amount) AS total_spend 
-FROM CreditCardTransactions 
+-- 4. Gender-wise Spending
+SELECT gender, COUNT(*) AS txn_count, SUM(amount) AS total_spend
+FROM CreditCardTransactions
 GROUP BY gender;
 
--- Card Type Performance
-SELECT card_type, COUNT(*) AS txn_count, AVG(amount) AS avg_spend 
-FROM CreditCardTransactions 
-GROUP BY card_type; 
+-- 5. Card Type Performance
+SELECT card_type, COUNT(*) AS txn_count, AVG(amount) AS avg_spend
+FROM CreditCardTransactions
+GROUP BY card_type;

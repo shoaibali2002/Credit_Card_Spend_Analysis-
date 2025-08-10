@@ -1,27 +1,147 @@
--- 1. Total Spending by City
-SELECT city, SUM(amount) AS total_spent
-FROM CreditCardTransactions
+create database credit_card;
+
+ SELECT
+  city,
+  SUM(amount) AS total_spent,
+  ROUND(SUM(amount) * 100.0 / (SELECT SUM(amount)FROM credit_card_transactions),2) AS percentage_contribution
+FROM credit_card_transactions
 GROUP BY city
-ORDER BY total_spent DESC;
+ORDER BY total_spent DESC
+LIMIT 5;
 
--- 2. Monthly Spending Trend
-SELECT DATE_FORMAT(transaction_date, '%Y-%m') AS month, SUM(amount) AS total_amount
-FROM CreditCardTransactions
-GROUP BY month
-ORDER BY month;
 
--- 3. Expense Type Distribution
-SELECT exp_type, COUNT(*) AS txn_count, SUM(amount) AS total_spend
-FROM CreditCardTransactions
+SELECT year,
+  card_type,
+  month,
+  total_amount
+FROM (SELECT 
+    SUBSTR(transaction_date, 8, 2) AS year,
+    card_type,
+    SUBSTR(transaction_date, 4, 3) AS month,
+    SUM(amount) AS total_amount,
+     RANK() OVER (
+      PARTITION BY SUBSTR(transaction_date, 8, 2), card_type
+      ORDER BY SUM(amount) DESC
+    ) AS rnk
+  FROM credit_card_transactions
+  GROUP BY year(transaction_date), month(transaction_date), card_type
+) AS ranked_data
+WHERE rnk = 1;
+
+
+SELECT * FROM credit_card_transcations
+WHERE transaction_id <= 500;
+
+WITH step1 AS (
+  SELECT *,
+    SUM(amount) OVER (
+      PARTITION BY card_type 
+      ORDER BY transaction_date, transaction_id
+    ) AS total_spend
+  FROM credit_card_transactions
+),
+step2 AS (
+  SELECT *,
+    DENSE_RANK() OVER (
+      PARTITION BY card_type 
+      ORDER BY total_spend
+    ) AS rank_no
+  FROM step1
+  WHERE total_spend >= 1000000
+)
+SELECT *
+FROM step2
+WHERE rank_no = 1;
+
+SELECT city,
+       ROUND(SUM(amount) * 100.0 / (SELECT SUM(amount) 
+                                    FROM credit_card_transactions 
+                                    WHERE card_type = 'Gold'), 2) AS percentage
+FROM credit_card_transactions
+WHERE card_type = 'Gold'
+ORDER BY percentage ASC
+LIMIT 1;
+
+
+SELECT 
+    city,
+    MAX(CASE WHEN amount = max_amt THEN exp_type END) AS highest_expense_type,
+    MAX(CASE WHEN amount = min_amt THEN exp_type END) AS lowest_expense_type
+FROM (
+    SELECT 
+        city,
+        exp_type,
+        SUM(amount) AS amount,
+        MAX(SUM(amount)) OVER (PARTITION BY city) AS max_amt,
+        MIN(SUM(amount)) OVER (PARTITION BY city) AS min_amt
+    FROM credit_card_transactions
+    GROUP BY city, exp_type
+) AS t
+GROUP BY city;
+
+
+    exp_type,
+    ROUND(SUM(CASE WHEN gender = 'F' THEN amount ELSE 0 END) * 100.0 / SUM(amount), 2) AS female_spend_percentage
+FROM credit_card_transactions
 GROUP BY exp_type
-ORDER BY total_spend DESC;
+ORDER BY female_spend_percentage DESC;
 
--- 4. Gender-wise Spending
-SELECT gender, COUNT(*) AS txn_count, SUM(amount) AS total_spend
-FROM CreditCardTransactions
-GROUP BY gender;
 
--- 5. Card Type Performance
-SELECT card_type, COUNT(*) AS txn_count, AVG(amount) AS avg_spend
-FROM CreditCardTransactions
-GROUP BY card_type;
+WITH monthly_spends AS (
+    SELECT 
+        card_type, 
+        exp_type, 
+        YEAR(transaction_date) AS yr, 
+        MONTH(transaction_date) AS mn, 
+        SUM(amount) AS total_spend
+    FROM credit_card_transactions
+    GROUP BY card_type, exp_type, YEAR(transaction_date), MONTH(transaction_date)
+),
+mom_growths AS (
+    SELECT 
+        m1.card_type,
+        m1.exp_type,
+        m1.total_spend,
+        m2.total_spend AS prev_month_spend,
+        (m1.total_spend - m2.total_spend) AS mom_growth
+    FROM monthly_spends m1
+    JOIN monthly_spends m2
+        ON m1.card_type = m2.card_type 
+        AND m1.exp_type = m2.exp_type
+        AND m1.yr = 2014 AND m1.mn = 1
+        AND m2.yr = 2013 AND m2.mn = 12
+)
+SELECT *
+FROM mom_growths
+ORDER BY mom_growth DESC
+LIMIT 1;
+
+
+
+
+
+       SUM(amount) * 1.0 / COUNT(*) AS trans_ratio
+FROM credit_card_transactions
+WHERE DAYNAME(transaction_date) IN ('Saturday', 'Sunday')
+GROUP BY city
+ORDER BY tras_ratio DESC
+LIMIT 1;
+
+
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY city ORDER BY transaction_date, transaction_id) AS txn_no
+    FROM credit_card_transactions
+),
+city_500th_txn AS (
+    SELECT city,
+           MIN(CASE WHEN txn_no = 1 THEN transaction_date END) AS first_date,
+           MIN(CASE WHEN txn_no = 500 THEN transaction_date END) AS txn_500_date
+    FROM city_txn_ordered
+    GROUP BY city
+    HAVING txn_500_date IS NOT NULL
+)
+SELECT city,
+       DATEDIFF(txn_500_date, first_date) AS days_to_500
+FROM city_500th_txn
+ORDER BY days_to_500
+LIMIT 1;
